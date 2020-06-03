@@ -1,4 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:spaceXLaunch/models/launchList.dart';
+import 'package:spaceXLaunch/services/launch_service.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() {
   runApp(MyApp());
@@ -8,110 +15,195 @@ class MyApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.blue,
-        // This makes the visual density adapt to the platform that you run
-        // the app on. For desktop platforms, the controls will be smaller and
-        // closer together (more dense) than on mobile platforms.
-        visualDensity: VisualDensity.adaptivePlatformDensity,
+    var launchService = LaunchService();
+    return FutureProvider(
+      create: (context) => launchService.fetchLaunch(),
+      child: MaterialApp(
+        title: 'Flutter Demo',
+        theme: ThemeData(
+          brightness: Brightness.dark,
+          visualDensity: VisualDensity.adaptivePlatformDensity,
+          textTheme: GoogleFonts.workSansTextTheme(
+            Theme.of(context)
+                .textTheme
+                .apply(bodyColor: Colors.white, displayColor: Colors.white),
+          ),
+        ),
+        home: Home(),
       ),
-      home: MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
+class Home extends StatefulWidget {
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  _HomeState createState() => _HomeState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _HomeState extends State<Home> {
+  Timer timer;
+  LaunchList launches;
+  String countdown;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+  @override
+  void initState() {
+    countdown = '';
+    timer = Timer.periodic(Duration(seconds: 1), (timer) {
+      if (launches != null) {
+        var diff =
+            launches.launches[0].launchUTC.difference(DateTime.now().toUtc());
+
+        setState(() {
+          countdown = durationToString(diff);
+        });
+      }
     });
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    timer.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
+    launches = Provider.of<LaunchList>(context);
+
     return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
-    );
+        body: (launch != null)
+            ? Container(
+                width: MediaQuery.of(context).size.width,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: <Widget>[
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          Container(
+                              padding: EdgeInsets.fromLTRB(0, 0, 0, 20),
+                              height: 150,
+                              child: Image.network(
+                                  launches.launches[0].missionPatchSm)),
+                          Text(
+                            'Next Launch',
+                            style: GoogleFonts.workSans(fontSize: 40.0),
+                          ),
+                          Text(
+                            countdown,
+                            style: GoogleFonts.sourceCodePro(
+                                fontSize: 50.0, fontWeight: FontWeight.w600),
+                          ),
+                          Text(
+                            'Mission: ' + launches.launches[0].missionName,
+                            style: GoogleFonts.workSans(fontSize: 30.0),
+                          ),
+                          Text(
+                            'Rocket: ' + launches.launches[0].rocket.rocketName,
+                            style: GoogleFonts.workSans(fontSize: 20.0),
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: <Widget>[
+                              (launches.launches[0].redditUrl != null)
+                                  ? IconButton(
+                                      padding: EdgeInsets.fromLTRB(0, 5, 20, 0),
+                                      icon: FaIcon(
+                                        FontAwesomeIcons.reddit,
+                                        size: 50.0,
+                                        color: Color.fromRGBO(255, 67, 1, 1),
+                                      ),
+                                      onPressed: () {
+                                        _launchUrl(
+                                            launches.launches[0].redditUrl);
+                                      })
+                                  : Container(),
+                              (launches.launches[0].videoUrl != null)
+                                  ? IconButton(
+                                      padding:
+                                          EdgeInsets.fromLTRB(20, 5, 20, 0),
+                                      icon: FaIcon(
+                                        FontAwesomeIcons.youtube,
+                                        size: 40.0,
+                                        color: Color.fromRGBO(255, 67, 1, 1),
+                                      ),
+                                      onPressed: () {
+                                        _launchUrl(
+                                            launches.launches[0].videoUrl);
+                                      })
+                                  : Container(),
+                            ],
+                          )
+                        ],
+                      ),
+                    ),
+                    Flexible(
+                      flex: 1,
+                      child: Column(
+                        children: <Widget>[
+                          Text('Upcoming Launches',
+                              style: GoogleFonts.workSans(fontSize: 30.0)),
+                          Expanded(
+                            child: ListView.builder(
+                                physics: BouncingScrollPhysics(),
+                                padding: const EdgeInsets.all(8),
+                                itemCount: launches.launches.length - 1,
+                                itemBuilder: (BuildContext context, int index) {
+                                  return Card(
+                                    child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: <Widget>[
+                                          ListTile(
+                                            leading: (launches
+                                                        .launches[index + 1]
+                                                        .missionPatchSm !=
+                                                    null)
+                                                ? Image.network(launches
+                                                    .launches[index + 1]
+                                                    .missionPatchSm)
+                                                : Image.network(
+                                                    'https://upload.wikimedia.org/wikipedia/commons/2/28/Falcon_9_logo_by_SpaceX.png'),
+                                            title: Text(
+                                                '${launches.launches[index + 1].missionName}'),
+                                            subtitle: Text(
+                                                '${launches.launches[index + 1].rocket.rocketName}'),
+                                            trailing: Text(
+                                                '${launches.launches[index + 1].formattedDate}'),
+                                          ),
+                                        ]),
+                                  );
+                                }),
+                          ),
+                        ],
+                      ),
+                    )
+                  ],
+                ),
+              )
+            : Center(
+                child: CircularProgressIndicator(),
+              ));
+  }
+
+  String durationToString(Duration duration) {
+    String twoDigits(int n) {
+      if (n >= 10) return "$n";
+      return "0$n";
+    }
+
+    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+    return "${twoDigits(duration.inDays)}:${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds";
+  }
+
+  _launchUrl(String url) async {
+    if (await canLaunch(url)) {
+      await launch(url);
+    } else {
+      throw 'Could not launch';
+    }
   }
 }
