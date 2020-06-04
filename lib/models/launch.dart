@@ -23,7 +23,7 @@ class Launch {
 
   factory Launch.fromJson(Map<dynamic, dynamic> parsedJson) {
     DateTime date = DateTime.parse(parsedJson['launch_date_utc']);
-    String formattedDate = DateFormat('MM-dd-yyyy').format(date);
+    String formattedDate = DateFormat('yyyy').format(date);
 
     return new Launch(
       launchUTC: date,
